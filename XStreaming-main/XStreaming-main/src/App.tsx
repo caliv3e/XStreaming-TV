@@ -1,0 +1,311 @@
+import React from 'react';
+import {Alert, Linking, useColorScheme, NativeModules, StatusBar} from 'react-native';
+import {
+  PaperProvider,
+  MD3DarkTheme,
+  MD3LightTheme,
+  adaptNavigationTheme,
+} from 'react-native-paper';
+
+import {createStackNavigator} from '@react-navigation/stack';
+import {
+  NavigationContainer,
+  DarkTheme as NavigationDarkTheme,
+  DefaultTheme as NavigationDefaultTheme,
+} from '@react-navigation/native';
+
+import merge from 'deepmerge';
+import {Provider} from 'react-redux';
+import store from './store';
+import {getSettings, saveSettings} from './store/settingStore';
+import {saveServerData} from './store/serverStore';
+
+import customLightTheme from './theme/index';
+import customDarkTheme from './theme/index.dark';
+
+import HomeScreen from './pages/Home';
+import CloudScreen from './pages/Cloud';
+import FriendsScreen from './pages/Friends';
+import AchivementScreen from './pages/Achivements';
+import AchivementDetailScreen from './pages/ArchivementDetail';
+import LoginScreen from './pages/Login';
+import StreamScreen from './pages/Stream';
+import NativeStreamScreen from './pages/NativeStream';
+import SettingsScreen from './pages/Settings';
+import SettingDetailScreen from './pages/SettingDetail';
+import TitleDetailScreen from './pages/TitleDetail';
+import DebugScreen from './pages/Debug';
+import GameMapScreen from './pages/GameMap';
+import NativeGameMapScreen from './pages/NativeGameMap';
+import GameMapDetailScreen from './pages/GameMapDetail';
+import DisplaySettingsScreen from './pages/DisplaySettings';
+import AboutScreen from './pages/About';
+import AboutZhScreen from './pages/AboutZh';
+import FeedbackScreen from './pages/Feedback';
+import VirtualGamepadSettingsScreen from './pages/VirtualGamepadSettings';
+import CustomGamepadScreen from './pages/CustomGamepad';
+import HoldButtonsScreen from './pages/HoldButtons';
+import Ds5SettingsScreen from './pages/Ds5Settings';
+import DeviceInfosScreen from './pages/DeviceInfos';
+import ThanksScreen from './pages/Thanks';
+import HistoryScreen from './pages/History';
+import ServerScreen from './pages/Server';
+import updater from './utils/updater';
+import getServer from './utils/get-server';
+
+import {useTranslation} from 'react-i18next';
+
+// ❌ 已删除: import {SystemBars} from 'react-native-edge-to-edge';
+
+import './i18n';
+import SearchScreen from './pages/Search';
+
+const RootStack = createStackNavigator();
+
+const {UsbRumbleManager, FullScreenManager} = NativeModules;
+
+const {LightTheme, DarkTheme} = adaptNavigationTheme({
+  reactNavigationLight: NavigationDefaultTheme,
+  reactNavigationDark: NavigationDarkTheme,
+});
+
+const paperLightTheme = {
+  ...MD3LightTheme,
+  colors: customLightTheme.colors,
+};
+
+const paperDarkTheme = {
+  ...MD3DarkTheme,
+  colors: customDarkTheme.colors,
+};
+
+const CombinedDefaultTheme = merge(paperLightTheme, LightTheme);
+const CombinedDarkTheme = merge(paperDarkTheme, DarkTheme);
+
+function App() {
+  const {t} = useTranslation();
+  const colorScheme = useColorScheme();
+  const settings = getSettings();
+  const deviceInfos = FullScreenManager.getDeviceInfos();
+
+  if (settings.bind_usb_device !== undefined) {
+    UsbRumbleManager.setBindUsbDevice(settings.bind_usb_device);
+  }
+
+  if (settings.check_update) {
+    updater().then((infos: any) => {
+      if (infos) {
+        const {latestVer, version, updateText, url} = infos;
+        Alert.alert(
+          t('Update Warning'),
+          t(
+            `Check new version ${latestVer}, current version is ${version}. \n ${updateText}`,
+          ),
+          [
+            {
+              text: t('Cancel'),
+              style: 'default',
+              onPress: () => {},
+            },
+            {
+              text: t('Download'),
+              style: 'default',
+              onPress: () => {
+                Linking.openURL(url).catch(_ => {});
+              },
+            },
+          ],
+        );
+      }
+    });
+  }
+
+  // Get TURN server
+  getServer().then((data: any) => {
+    if (data && data.url && data.username && data.credential) {
+      saveServerData(data);
+    }
+  });
+
+  let paperTheme = paperDarkTheme;
+  let navigationTheme = CombinedDarkTheme;
+
+  if (settings.theme === 'auto') {
+    paperTheme = colorScheme === 'dark' ? paperDarkTheme : paperLightTheme;
+    navigationTheme =
+      colorScheme === 'dark' ? CombinedDarkTheme : CombinedDefaultTheme;
+  } else if (settings.theme === 'light') {
+    paperTheme = paperLightTheme;
+    navigationTheme = CombinedDefaultTheme;
+  }
+
+  if (
+    deviceInfos.factor?.toLocaleUpperCase().indexOf('NINTENDO') > -1 &&
+    deviceInfos.model?.toLocaleUpperCase().indexOf('SWITCHLITE') > -1
+  ) {
+    if (!settings.short_trigger) {
+      settings.short_trigger = true;
+      saveSettings(settings);
+    }
+  }
+
+  return (
+    <>
+      <Provider store={store}>
+        <PaperProvider theme={paperTheme}>
+          <NavigationContainer theme={navigationTheme}>
+            <RootStack.Navigator>
+              <RootStack.Group>
+                {/* <RootStack.Screen
+                  name="Main"
+                  component={HomeTabs}
+                  options={{headerShown: false}}
+                /> */}
+                <RootStack.Screen
+                  name="Home"
+                  component={HomeScreen}
+                  options={{headerShown: false}}
+                />
+                <RootStack.Screen
+                  name="Cloud"
+                  component={CloudScreen}
+                  options={{title: t('Xcloud')}}
+                />
+                <RootStack.Screen
+                  name="Settings"
+                  component={SettingsScreen}
+                  options={{title: t('Settings')}}
+                />
+                <RootStack.Screen
+                  name="Login"
+                  component={LoginScreen}
+                  options={{title: t('Login')}}
+                />
+                <RootStack.Screen
+                  name="Stream"
+                  component={StreamScreen}
+                  options={{headerShown: false}}
+                />
+                <RootStack.Screen
+                  name="NativeStream"
+                  component={NativeStreamScreen}
+                  options={{headerShown: false}}
+                />
+                <RootStack.Screen
+                  name="CustomGamepad"
+                  component={CustomGamepadScreen}
+                  options={{headerShown: false}}
+                />
+                <RootStack.Screen
+                  name="VirtualGamepadSettings"
+                  component={VirtualGamepadSettingsScreen}
+                  options={{title: t('Custom')}}
+                />
+                <RootStack.Screen
+                  name="HoldButtons"
+                  component={HoldButtonsScreen}
+                  options={{title: t('Hold Buttons')}}
+                />
+                <RootStack.Screen
+                  name="Display"
+                  component={DisplaySettingsScreen}
+                  options={{title: t('Display')}}
+                />
+                <RootStack.Screen
+                  name="Search"
+                  component={SearchScreen}
+                  options={{title: t('Search'), headerShown: false}}
+                />
+                <RootStack.Screen
+                  name="Friends"
+                  component={FriendsScreen}
+                  options={{title: t('Friends')}}
+                />
+                <RootStack.Screen
+                  name="Achivements"
+                  component={AchivementScreen}
+                  options={{title: t('Achivements')}}
+                />
+                <RootStack.Screen
+                  name="About"
+                  component={AboutScreen}
+                  options={{title: t('About')}}
+                />
+                <RootStack.Screen
+                  name="AboutZh"
+                  component={AboutZhScreen}
+                  options={{title: t('About')}}
+                />
+                <RootStack.Screen
+                  name="Feedback"
+                  component={FeedbackScreen}
+                  options={{title: t('Feedback')}}
+                />
+                <RootStack.Screen
+                  name="Thanks"
+                  component={ThanksScreen}
+                  options={{title: t('Thanks')}}
+                />
+                <RootStack.Screen
+                  name="History"
+                  component={HistoryScreen}
+                  options={{title: t('HistoryTitle')}}
+                />
+                <RootStack.Screen
+                  name="Server"
+                  component={ServerScreen}
+                  options={{title: t('Server')}}
+                />
+                <RootStack.Screen
+                  name="GameMap"
+                  component={GameMapScreen}
+                  options={{title: t('GameMap')}}
+                />
+                <RootStack.Screen
+                  name="SettingDetail"
+                  component={SettingDetailScreen}
+                />
+                <RootStack.Screen
+                  name="NativeGameMap"
+                  component={NativeGameMapScreen}
+                  options={{title: t('GameMap')}}
+                />
+                <RootStack.Screen
+                  name="Ds5"
+                  component={Ds5SettingsScreen}
+                  options={{title: t('DualSense')}}
+                />
+                <RootStack.Screen
+                  name="DeviceInfos"
+                  component={DeviceInfosScreen}
+                  options={{title: t('Device testing')}}
+                />
+                <RootStack.Screen name="Debug" component={DebugScreen} />
+              </RootStack.Group>
+
+              <RootStack.Group screenOptions={{presentation: 'modal'}}>
+                <RootStack.Screen
+                  name="TitleDetail"
+                  component={TitleDetailScreen}
+                />
+                <RootStack.Screen
+                  name="AchivementDetail"
+                  component={AchivementDetailScreen}
+                />
+                <RootStack.Screen
+                  name="GameMapDetail"
+                  component={GameMapDetailScreen}
+                  options={{title: t('GameMap')}}
+                />
+              </RootStack.Group>
+            </RootStack.Navigator>
+          </NavigationContainer>
+        </PaperProvider>
+      </Provider>
+      {/* ✅ 修改: 替换为原生 StatusBar */}
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+    </>
+  );
+}
+
+export default App;
